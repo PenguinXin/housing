@@ -131,3 +131,10 @@ setdiff(unique(commune_level_data$locality), communes)
 # you may need to create the `datasets` folder first
 write.csv(commune_level_data, "datasets/commune_level_data.csv", row.names = TRUE)
 write.csv(country_level_data, "datasets/country_level_data.csv", row.names = TRUE)
+
+# how to use rvest
+former_communes <- "https://w.wiki/_wFe7" |>
+  read_html() |>
+  html_table() |>
+  pluck(3) |>
+  clean_names()

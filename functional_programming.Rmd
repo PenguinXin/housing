@@ -1,0 +1,338 @@
+---
+title: "Functional Programming Fundamental"
+date: "`r format(Sys.time(), '%B %d, %Y')`"
+output:
+  html_document:
+    code_folding: hide 
+    theme: flatly
+    toc: yes
+    toc_depth: 5
+    toc_float:
+      collapsed: no
+  pdf_document:
+    toc: yes
+    toc_depth: '5'
+editor_options:
+  chunk_output_type: console
+---
+
+```{r}
+library(tidyverse)
+library(janitor)
+```
+
+
+```{r}
+make_plot <- function(country_level_data,
+                      commune_level_data,
+                      commune){
+  
+  filtered_data <- commune_level_data |> 
+    filter(locality == commune)
+  
+  data_to_plot <- bind_rows(country_level_data, filtered_data)
+  
+  ggplot(data_to_plot) +
+    geom_line(aes(y = pl_m2, x = year, group = locality, colour = locality))
+}
+```
+
+```{r}
+data("mtcars")
+ls()
+
+g <- function(name){
+  food <- sample(c("lasagna", "cassoulet", "feijoada"), 1)
+  print(paste0(name, " likes ", food))
+}
+
+g("Bruno")
+
+
+h <- function(name){
+  food <- sample(c("lasagna", "cassoulet", "feijoada"), 1)
+  
+  if(exists("food_list")){
+    food_list <<- append(food_list, food) 
+  } else {
+    food_list <<- append(list(), food)
+  }
+  
+  print(paste0(name, " likes ", food))
+}
+
+ls()
+
+```
+
+```{r}
+h <- function(name, food_list = list(), seed = 123){
+  
+  set.seed(seed)
+  food <- sample(c("lasagna", "cassoulet", "feijoada"), 1)
+    
+  # We now need to unset the seed, because
+  # if we don't, guess what, the seed will
+  # stay set for the whole session!
+  set.seed(NULL)
+  
+  food_list <- append(food_list, food)
+  
+  print(paste0(name, " likes ", food))
+  
+  food_list
+}
+
+h("Bruno")
+```
+
+```{r}
+h <- function(number, f){
+  f(number)
+}
+
+h(4, sqrt)
+
+h <- function(number, f, ...){
+  f(number, ...)
+}
+
+h(c(1, 2, NA, 3), mean, na.rm = TRUE)
+
+w <- function(...){
+  paste0("First argument: ", ..1,
+         ", second argument: ", ..2,
+         ", last argument: ", ..3)
+}
+
+w(1, 2, 3)
+
+
+strictly <- function(f){
+  function(...){
+    tryCatch({
+      f(...)
+    },
+    warning = function(warning)stop("Can't do that chief"))
+  }
+}
+
+s_qrt <- strictly(sqrt)
+
+s_qrt(-4)
+```
+
+```{r}
+g <- function(x, y = NULL){
+  if(is.null(y)){
+    print("optional argument y is missing")
+    x
+  } else {
+    if(y == 5) print("y is present")
+    x + y
+  }
+}
+
+g(10, 2)
+
+```
+
+```{r}
+nchar2 <- function(x, result = 0){
+  
+  if(!isTRUE(is.character(x))){
+    stop(paste0("x should be of type 'character', but is of type '",
+                typeof(x), "' instead."))
+  } else if (x == ""){
+    result
+  } else {
+    result <- result + 1
+    split_x <- strsplit(x, split = "")[[1]]
+    nchar2(paste0(split_x[-1], collapse = ""), result)
+  }
+}
+  
+nchar2("abc")
+nchar2("10293")
+nchar2  
+```
+
+```{r}
+fact_iter <- function(n){
+  result = 1
+  for(i in 1:n){
+    result = result * i
+    i = i + 1
+  }
+  result
+}
+
+fact_iter(4)
+```
+
+```{r}
+data("mtcars")
+typeof(mtcars)
+
+sqrt_newton <- function(a,
+                        init = 1,
+                        eps = 0.01,
+                        steps = 1){
+  
+  stopifnot(a > 0)
+  while(abs(init**2 - a) > eps){
+    init <- 1/2 * (init + a/init)
+    steps <- steps + 1
+  }
+  list(
+    "result" = init,
+    "steps" = steps
+  )
+}
+
+
+sqrt_newton(40)
+```
+
+```{r}
+result <- 0
+
+for (i in 1:100){
+  result <- result + i
+} 
+
+print(result)
+ls()
+
+list_a <- as.list(seq(1:5))
+
+typeof(list_a[[1]])
+
+tail(list_a, -1)
+
+map2(.x = seq(1, 5), .y = seq(1, 5), .f = `+`)
+
+lapply(iris, class)
+```
+
+```{r}
+# create a temporary file
+unemp_path <- tempfile(fileext = ".rda")
+
+# download the data and save it to the path of the temporary file
+# avoids having to install the package from github
+download.file("https://is.gd/l57cNX", destfile = unemp_path)
+
+# load the data
+unemp
+```
+
+```{r}
+glimpse(unemp)
+
+filtered_unemp <- unemp |> 
+  filter(
+    level == "Commune",
+    place_name %in% c("Luxembourg", "Esch-sur-Alzette", "Wiltz")
+  )
+
+glimpse(filtered_unemp)
+typeof(filtered_unemp) # list
+
+nested_unemp <- filtered_unemp |> 
+  group_nest(place_name)
+
+nested_unemp |> 
+  mutate(nrows = map_int(data, nrow))
+
+# filter rows
+nested_unemp |> 
+  mutate(nrows = map(data, function(x) filter(x, year == 2015)))# use an anonymous function
+  #mutate(nrows = map(data, \(x)filter(x, year == 2015))) 
+
+# plot one single commune
+lux_data <- nested_unemp |> 
+  filter(place_name == "Luxembourg") |> 
+  unnest(data)
+
+
+lux_data |> 
+  ggplot() +
+  theme_minimal() +
+  geom_line(aes(x = year, y = unemployment_rate_in_percent, group = 1)) +
+  labs(title = "Unemployment in Luxembourg")
+
+# write it as a function
+make_plot <- function(x, y){
+  ggplot(data = x) +
+    theme_minimal() +
+    geom_line(aes(year, unemployment_rate_in_percent, group = 1)) +
+    labs(title = paste("Unemployment in", y))
+}
+
+make_plot(lux_data, "Esch-sur-Alzette")
+
+# apply this function to the nested data frame
+nested_unemp_with_plot <- nested_unemp |> 
+  mutate(plots = map2(
+    .x = data,
+    .y = place_name,
+    .f = make_plot
+  ))
+
+nested_unemp_with_plot$plots
+```
+
+```{r}
+Filter(is.character, list(seq(1, 5), "AHH"))
+
+local({abc <- 3})
+
+ls()
+```
+
+```{r}
+# purrr
+map(seq(1:5), sqrt)
+map_chr(letters, toupper)
+
+# withr
+with_tempfile("unemp", {
+  download.file(
+    "https://is.gd/l57cNX",
+    destfile = unemp
+  )
+  load(unemp)
+  nrow(unemp)
+})
+
+```
+
+```{r}
+# knitr basics
+install.packages("rmarkdown")
+install.packages("tinytex") # install LaTeX distribution
+install_tinytex()
+
+
+```
+
+```{r}
+install.packages("flextable")
+library(flextable)
+
+my_table <- head(mtcars)
+
+flextable(my_table) |> 
+  set_caption(caption = "Head of the mtcars dataset") |> 
+  theme_zebra()
+
+install.packages("modelsummary")
+
+model_1 <- lm(mpg ~ hp + am, data = mtcars)
+model_2 <- lm(mpg ~ hp, data = mtcars)
+models <- list("Model 1" = model_1,
+               "Model 2" = model_2)
+modelsummary(models)
+```
+
